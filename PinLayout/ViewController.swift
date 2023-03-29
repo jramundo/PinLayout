@@ -41,8 +41,16 @@ class ViewController: UIViewController {
         return titleLabel
     }()
 
+    private let titleLabelFive: UILabel = {
+        let titleLabel = UILabel()
+        titleLabel.text = "titleLabelFour Lorem ipsum dolor sit amet, consectetuer adipiscing elit. Aenean commodo ligula eget dolor. Aenean massa. Cum sociis natoque penatibus et magnis dis parturient montes, nascetur ridiculus mus. Donec quam felis, ultricies nec, pellentesque eu, pretium quis, sem. Nulla consequat massa quis enim. Donec pede justo, fringilla vel, aliquet nec, vulputate eget, arcu. In enim justo, rhoncus ut, imperdiet a, venenatis vitae, justo. Nullam dictum felis eu pede mollis pretium. Integer tincidunt. Cras dapibus. Vivamus elementum semper nisi. Aenean vulputate eleifend tellus. Aenean leo ligula, porttitor eu, consequat vitae, eleifend ac, enim."
+        titleLabel.numberOfLines = 2
+        return titleLabel
+    }()
+
     private let coloredViewOne = UIView()
     private let coloredViewTwo = UIView()
+    private let labelView = UIView()
 
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -63,6 +71,8 @@ class ViewController: UIViewController {
         view.addSubview(coloredViewTwo)
         coloredViewOne.backgroundColor = .lightGray
         coloredViewTwo.backgroundColor = .red
+        labelView.addSubview(titleLabelFive)
+        view.addSubview(labelView)
     }
 
     private func setUpContraints() {
@@ -89,7 +99,7 @@ class ViewController: UIViewController {
         ])
 
         coloredViewTwo
-            .pin(.height, to: coloredViewOne)
+            .pin(.height, to: coloredViewOne, constant: 25)
             .pin(.top, to: coloredViewOne)
             .pin(.leading, to: coloredViewOne.trailingAnchor, offset: 20)
             .pin(.trailing, to: view, constant: -20)
@@ -100,7 +110,8 @@ class ViewController: UIViewController {
             .pin(.trailing, to: view, constant: -20)
 
         checkBox
-            .pinSize(to: CGSize(width: 25, height: 25))
+//            .pinSize(to: CGSize(width: 25, height: 25))
+//            .pinSize(to: 25)
             .pin(.top, to: titleLabelThree)
             .pin(.leading, to: pseudoTermsAndConditionsView)
 
@@ -111,6 +122,16 @@ class ViewController: UIViewController {
         titleLabelFour
             .pin(.leading, .trailing, to: view)
             .pin(.bottom, to: view, constant: -20)
+
+
+        labelView.backgroundColor = .yellow
+        labelView
+            .pin(.top, to: pseudoTermsAndConditionsView.bottomAnchor, offset: 20)
+            .pin(.leading, .trailing, to: view)
+
+        titleLabelFive
+//            .pinEdges(to: labelView, constant: 20)
+            .pinEdges(to: labelView, insets: UIEdgeInsets(uniform: 10))
     }
 }
 
