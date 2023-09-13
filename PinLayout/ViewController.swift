@@ -73,7 +73,22 @@ class ViewController: UIViewController {
         coloredViewTwo.backgroundColor = .red
         labelView.addSubview(titleLabelFive)
         view.addSubview(labelView)
+
+        let tap = UITapGestureRecognizer(target: self, action: #selector(didTapColoredViewOne))
+        tap.cancelsTouchesInView = true
+        coloredViewOne.addGestureRecognizer(tap)
+
+        checkBox.delegate = self
     }
+
+    @objc
+    private func didTapColoredViewOne() {
+        let actualHeight: CGFloat = coloredViewTwoHeightConstraint?.height?.constant ?? 25
+        coloredViewTwoHeightConstraint?.height?.constant = actualHeight == 25 ? 35 : 25
+    }
+
+    private var coloredViewTwoHeightConstraint: AppKitLayoutAnchorConstraintCollection?
+    private var titleThreeLeadingConstraint: NSLayoutConstraint?
 
     private func setUpContraints() {
         titleLabelOne.translatesAutoresizingMaskIntoConstraints = false
@@ -98,8 +113,11 @@ class ViewController: UIViewController {
             coloredViewOne.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20),
         ])
 
+        // NOTE THAT THIS IS THE SAME AS THE LINE BELLOW BUT SAVING ITS STATE
+
+        coloredViewTwoHeightConstraint = coloredViewTwo.pinConstraint(.height, to: coloredViewOne, constant: 25)
         coloredViewTwo
-            .pin(.height, to: coloredViewOne, constant: 25)
+//            .pin(.height, to: coloredViewOne, constant: 25)
             .pin(.top, to: coloredViewOne)
             .pin(.leading, to: coloredViewOne.trailingAnchor, offset: 20)
             .pin(.trailing, to: view, constant: -20)
@@ -117,7 +135,9 @@ class ViewController: UIViewController {
 
         titleLabelThree
             .pin(.top, .bottom, .trailing, to: pseudoTermsAndConditionsView)
-            .pin(.leading, to: checkBox.trailingAnchor, offset: 20)
+//            .pin(.leading, to: checkBox.trailingAnchor, offset: 20) // NOTE THAT THIS IS THE SAME AS THE LINE BELLOW BUT WITHOUT SAVING ITS STATE
+
+        titleThreeLeadingConstraint = titleLabelThree.pinConstraint(.leading, to: checkBox.trailingAnchor, offset: 20)
 
         titleLabelFour
             .pin(.leading, .trailing, to: view)
@@ -135,3 +155,9 @@ class ViewController: UIViewController {
     }
 }
 
+extension ViewController: AKCheckboxDelegate {
+    func onCheckboxPressed(selected: Bool) {
+        let actualConstant: CGFloat = titleThreeLeadingConstraint?.constant ?? 0
+        titleThreeLeadingConstraint?.constant = actualConstant == 0 ? 20 : 0
+    }
+}

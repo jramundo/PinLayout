@@ -1,8 +1,8 @@
 //
 //  UIView+AppKitLayoutAnchor.swift
-//  PinLayout
+//  Version: 2.0
 //
-//  Created by Juan Pablo Ramundo on 22/03/2023.
+//  Copyright © 2022 Banco de Credito e Inversiones. All rights reserved.
 //
 
 import UIKit
@@ -21,6 +21,27 @@ public protocol AppKitLayoutAnchor {
     var centerYAnchor: NSLayoutYAxisAnchor { get }
     var leftAnchor: NSLayoutXAxisAnchor { get }
     var rightAnchor: NSLayoutXAxisAnchor { get }
+}
+
+/// Defines the return type for a collection of constraints when using the `.pinConstraint...()` variants.
+/// If you add multiple constraints and two use the same `NSLayoutConstraint.Attribute`s,
+/// then only the last one in the list will be returned.
+/// All constraints in this collection are activated by default.
+public typealias AppKitLayoutAnchorConstraintCollection = [NSLayoutConstraint.Attribute: NSLayoutConstraint]
+
+extension AppKitLayoutAnchorConstraintCollection where Value: NSLayoutConstraint {
+    public typealias Constraint = Value?
+
+    public var top: Constraint { self[.top] }
+    public var bottom: Constraint { self[.bottom] }
+    public var leading: Constraint { self[.leading] }
+    public var trailing: Constraint { self[.trailing] }
+    public var width: Constraint { self[.width] }
+    public var height: Constraint { self[.height] }
+    public var centerX: Constraint { self[.centerX] }
+    public var centerY: Constraint { self[.centerY] }
+    public var left: Constraint { self[.left] }
+    public var right: Constraint { self[.right] }
 }
 
 /// Conforming to the protocol.
@@ -62,6 +83,38 @@ public extension UIView {
         return self
     }
 
+    func pinConstraint(
+        _ attributes: NSLayoutConstraint.Attribute...,
+        to item: AppKitLayoutAnchor? = nil,
+        relation: NSLayoutConstraint.Relation = .equal,
+        constant: CGFloat = 0,
+        multiplier: CGFloat = 1,
+        priority: UILayoutPriority = .required
+    ) -> AppKitLayoutAnchorConstraintCollection {
+        translatesAutoresizingMaskIntoConstraints = false
+        var constraints: AppKitLayoutAnchorConstraintCollection = [:]
+
+        for attribute in attributes {
+            let constraint = NSLayoutConstraint(
+                item: self,
+                attribute: attribute,
+                relatedBy: relation,
+                toItem: item,
+                attribute: attribute,
+                multiplier: multiplier,
+                constant: constant
+            )
+            constraint.priority = priority
+            constraint.identifier = String(describing: attribute)
+            constraints[attribute] = constraint
+        }
+
+        let values: [NSLayoutConstraint] = constraints.values.compactMap { $0 }
+        NSLayoutConstraint.activate(values)
+
+        return constraints
+    }
+
     @discardableResult
     func pin(
         _ attribute: NSLayoutConstraint.Attribute,
@@ -78,6 +131,22 @@ public extension UIView {
         return self
     }
 
+    func pinConstraint(
+        _ attribute: NSLayoutConstraint.Attribute,
+        to yAnchor: NSLayoutYAxisAnchor,
+        offset: CGFloat = 0,
+        relation: NSLayoutConstraint.Relation = .equal,
+        priority: UILayoutPriority = .required,
+        isActive: Bool = true
+    ) -> NSLayoutConstraint {
+        translatesAutoresizingMaskIntoConstraints = false
+        let constraint = yAxisAnchor(for: attribute).constraint(for: relation, to: yAnchor, constant: offset)
+        constraint.priority = priority
+        constraint.identifier = String(describing: attribute)
+        constraint.isActive = isActive
+        return constraint
+    }
+
     @discardableResult
     func pin(
         _ attribute: NSLayoutConstraint.Attribute,
@@ -92,6 +161,37 @@ public extension UIView {
         constraint.identifier = String(describing: attribute)
         constraint.isActive = true
         return self
+    }
+
+    func pinConstraint(
+        _ attribute: NSLayoutConstraint.Attribute,
+        to xAnchor: NSLayoutXAxisAnchor,
+        offset: CGFloat = 0,
+        relation: NSLayoutConstraint.Relation = .equal,
+        priority: UILayoutPriority = .required,
+        isActive: Bool = true
+    ) -> NSLayoutConstraint {
+        translatesAutoresizingMaskIntoConstraints = false
+        let constraint = xAxisAnchor(for: attribute).constraint(for: relation, to: xAnchor, constant: offset)
+        constraint.priority = priority
+        constraint.identifier = String(describing: attribute)
+        constraint.isActive = isActive
+        return constraint
+    }
+
+    func pinConstraint(
+        _ attribute: NSLayoutConstraint.Attribute,
+        constant: CGFloat = 0,
+        relation: NSLayoutConstraint.Relation = .equal,
+        priority: UILayoutPriority = .required,
+        isActive: Bool = true
+    ) -> NSLayoutConstraint {
+        translatesAutoresizingMaskIntoConstraints = false
+        let constraint = layoutDimension(for: attribute).constraint(for: relation, constant: constant)
+        constraint.priority = priority
+        constraint.identifier = String(describing: attribute)
+        constraint.isActive = isActive
+        return constraint
     }
 }
 
@@ -120,6 +220,15 @@ extension UIView {
         case .centerX: return centerXAnchor
         default:
             fatalError("Only x-axis attributes can translate to x-axis anchors.")
+        }
+    }
+
+    fileprivate func layoutDimension(for dimension: NSLayoutConstraint.Attribute) -> NSLayoutDimension {
+        switch dimension {
+        case .width: return widthAnchor
+        case .height: return heightAnchor
+        default:
+            fatalError("Only width/height attributes can translate to layout dimensions.")
         }
     }
 }
@@ -160,6 +269,24 @@ public extension NSLayoutXAxisAnchor {
             return constraint(greaterThanOrEqualTo: anchor, constant: constant)
         @unknown default:
             return constraint(equalTo: anchor, constant: constant)
+        }
+    }
+}
+
+public extension NSLayoutDimension {
+    func constraint(
+        for relation: NSLayoutConstraint.Relation,
+        constant: CGFloat = 0
+    ) -> NSLayoutConstraint {
+        switch relation {
+        case .lessThanOrEqual:
+            return constraint(lessThanOrEqualToConstant: constant)
+        case .equal:
+            return constraint(equalToConstant: constant)
+        case .greaterThanOrEqual:
+            return constraint(greaterThanOrEqualToConstant: constant)
+        @unknown default:
+            return constraint(equalToConstant: constant)
         }
     }
 }
@@ -242,6 +369,25 @@ public extension UIView {
         return self
     }
 
+    /// Pins `self` to the edges of `item`.
+    /// - Parameters:
+    ///   - item: `item` to which `self` is pinning.
+    ///   - insets: `UIEdgeInsets` from `item`'s frame. The default value is `.zero`.
+    /// - Returns: The constraints assigned to `self`.
+    func pinConstraintEdges(
+        to item: AppKitLayoutAnchor,
+        insets: UIEdgeInsets
+    ) -> AppKitLayoutAnchorConstraintCollection {
+        var constraints: AppKitLayoutAnchorConstraintCollection = [:]
+
+        for pair in BulkAttributes.edges(insets) {
+            let constraint = pinConstraint(pair.attribute, to: item, constant: pair.constant)
+            constraints.merge(constraint) { _, new in new }
+        }
+
+        return constraints
+    }
+
     @discardableResult
     /// Pins `self` to the edges of `item`.
     /// - Parameters:
@@ -254,6 +400,19 @@ public extension UIView {
         constant: CGFloat = .zero
     ) -> UIView {
         pinEdges(to: item, insets: UIEdgeInsets(uniform: constant))
+    }
+
+    /// Pins `self` to the edges of `item`.
+    /// - Parameters:
+    ///   - item: `item` to which `self` is pinning.
+    ///   - constant: The `constant` to be used as spacing to the edges. The default value is `.zero`.
+    ///               The negative sign will be automatically applied where necessary (.trailing, .bottom, etc).
+    /// - Returns: The constraints assigned to `self`.
+    func pinConstraintEdges(
+        to item: AppKitLayoutAnchor,
+        constant: CGFloat = .zero
+    ) -> AppKitLayoutAnchorConstraintCollection {
+        pinConstraintEdges(to: item, insets: UIEdgeInsets(uniform: constant))
     }
 
     // MARK: Center
@@ -272,6 +431,25 @@ public extension UIView {
             pin(pair.attribute, to: item, constant: pair.constant)
         }
         return self
+    }
+
+    /// Pins `self.center` to `item.center`.
+    /// - Parameters:
+    ///   - item: `item` to which `center` is being pinned by `self.center`.
+    ///   - offset: An `offset` point to be used as a distance to `item.center`.
+    /// - Returns: The constraints assigned to `self`.
+    func pinConstraintCenter(
+        to item: AppKitLayoutAnchor,
+        offset: CGPoint = .zero
+    ) -> AppKitLayoutAnchorConstraintCollection {
+        var constraints: AppKitLayoutAnchorConstraintCollection = [:]
+
+        for pair in BulkAttributes.center(offset) {
+            let constraint = pinConstraint(pair.attribute, to: item, constant: pair.constant)
+            constraints.merge(constraint) { _, new in new }
+        }
+
+        return constraints
     }
 
     // MARK: Size
@@ -294,6 +472,27 @@ public extension UIView {
         return self
     }
 
+    /// Pins `self`'s size to `item`'s size.
+    /// - Parameters:
+    ///   - view: The `UIView` from which `self`'s size is pinning to.
+    ///   - padding: A size `padding` to differ from `view`'s size. The default value is `.zero`.
+    ///   - priority: The `priority` assigned to the constraints. The default value is `.required`.
+    /// - Returns: The constraints assigned to `self`.
+    func pinConstraintSize(
+        to view: UIView,
+        padding: CGSize = .zero,
+        priority: UILayoutPriority = .required
+    ) -> AppKitLayoutAnchorConstraintCollection {
+        var constraints: AppKitLayoutAnchorConstraintCollection = [:]
+
+        for pair in BulkAttributes.size(padding) {
+            let constraint = pinConstraint(pair.attribute, to: view, constant: pair.constant, priority: priority)
+            constraints.merge(constraint) { _, new in new }
+        }
+
+        return constraints
+    }
+
     @discardableResult
     /// Pins `self` to a constant size.
     /// - Parameters:
@@ -310,6 +509,25 @@ public extension UIView {
         return self
     }
 
+    /// Pins `self` to a constant size.
+    /// - Parameters:
+    ///   - constant: The `size` to which `self`'s size will pin to.
+    ///   - priority: The `priority` assigned to the constraints. The default value is `.required`.
+    /// - Returns: The constraints assigned to `self`.
+    func pinConstraintSize(
+        to size: CGSize,
+        priority: UILayoutPriority = .required
+    ) -> AppKitLayoutAnchorConstraintCollection {
+        var constraints: AppKitLayoutAnchorConstraintCollection = [:]
+
+        for pair in BulkAttributes.size(size) {
+            let constraint = pinConstraint(pair.attribute, constant: pair.constant, priority: priority)
+            constraints[pair.attribute] = constraint
+        }
+
+        return constraints
+    }
+
     @discardableResult
     /// Pins `self` to a constant _squared_ size.
     /// This means it will be a "constant x constant" sized view.
@@ -323,5 +541,19 @@ public extension UIView {
     ) -> UIView {
         let size = CGSize(width: constant, height: constant)
         return pinSize(to: size, priority: priority)
+    }
+
+    /// Pins `self` to a constant _squared_ size.
+    /// This means it will be a "constant x constant" sized view.
+    /// - Parameters:
+    ///   - constant: The `constant` to which `self`'s size will square-pin to.
+    ///   - priority: The `priority` assigned to the constraints. The default value is `.required`.
+    /// - Returns: `self` so this can be chained with other pinning calls.
+    func pinConstraintSize(
+        to constant: CGFloat,
+        priority: UILayoutPriority = .required
+    ) -> AppKitLayoutAnchorConstraintCollection {
+        let size = CGSize(width: constant, height: constant)
+        return pinConstraintSize(to: size, priority: priority)
     }
 }
